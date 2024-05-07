@@ -65,7 +65,7 @@ def train_eval(
   random_agent = embodied.RandomAgent(train_env.act_space)
   print('Prefill train dataset.')
   while len(train_replay) < max(args.batch_steps, args.train_fill):
-    driver_train(random_agent.policy, steps=100)
+    driver_train(steps=100)
   print('Prefill eval dataset.')
   while len(eval_replay) < max(args.batch_steps, args.eval_fill):
     driver_eval(random_agent.policy, steps=100)
@@ -111,15 +111,15 @@ def train_eval(
   should_save(step)  # Register that we jused saved.
 
   print('Start training loop.')
-  policy_train = lambda *args: agent.policy(
-      *args, mode='explore' if should_expl(step) else 'train')
+  # policy_train = lambda *args: agent.policy(
+  #     *args, mode='explore' if should_expl(step) else 'train')
   policy_eval = lambda *args: agent.policy(*args, mode='eval')
   while step < args.steps:
     if should_eval(step):
       print('Starting evaluation at step', int(step))
       driver_eval.reset()
       driver_eval(policy_eval, episodes=max(len(eval_env), args.eval_eps), logger=logger)
-    driver_train(policy_train, steps=100)
+    driver_train(steps=100)
     if should_save(step):
       checkpoint.save()
   logger.write()

@@ -19,6 +19,8 @@ __package__ = directory.name
 import embodied
 from embodied import wrappers
 
+import numpy as np
+import os
 
 def main(argv=None):
   from . import agent as agt
@@ -39,9 +41,14 @@ def main(argv=None):
   step = embodied.Counter()
   logger = make_logger(parsed, logdir, step, config)
 
+  if config.offline_datadir:
+    datadir = embodied.Path(config.offline_datadir)
+  else:
+    datadir = config.offline_datadir
+
   cleanup = []
   try:
-
+    # import ipdb; ipdb.set_trace()
     if args.script == 'train':
       replay = make_replay(config, logdir / 'replay')
       env = make_envs(config)
@@ -65,7 +72,7 @@ def main(argv=None):
       agent = agt.Agent(env.obs_space, env.act_space, step, config)
       # import ipdb; ipdb.set_trace()
       embodied.run.train_eval(
-          agent, env, eval_env, replay, eval_replay, logger, args)
+          agent, env, eval_env, datadir, replay, eval_replay, logger, args)
 
     elif args.script == 'train_holdout':
       replay = make_replay(config, logdir / 'replay')
