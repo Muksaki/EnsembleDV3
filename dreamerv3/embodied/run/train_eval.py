@@ -5,14 +5,14 @@ import numpy as np
 
 
 def train_eval(
-    agent, train_env, eval_env, train_replay, eval_replay, logger, args):
+    agent, train_env, eval_env, offline_datadir, train_replay, eval_replay, logger, args):
 
   logdir = embodied.Path(args.logdir)
   logdir.mkdirs()
   print('Logdir', logdir)
   should_expl = embodied.when.Until(args.expl_until)
   should_train = embodied.when.Ratio(args.train_ratio / args.batch_steps)
-  should_log = embodied.when.Clock(args.log_every)
+  should_log = embodied.when.Every(args.log_every)
   should_save = embodied.when.Clock(args.save_every)
   should_eval = embodied.when.Every(args.eval_every, args.eval_initial)
   should_sync = embodied.when.Every(args.sync_every)
@@ -54,7 +54,7 @@ def train_eval(
         stats[f'max_{key}'] = ep[key].max(0).mean()
     metrics.add(stats, prefix=f'{mode}_stats')
 
-  driver_train = embodied.Driver(train_env)
+  driver_train = embodied.OfflineDriver(train_env, offline_datadir)
   driver_train.on_episode(lambda ep, worker: per_episode(ep, mode='train'))
   driver_train.on_step(lambda tran, _: step.increment())
   driver_train.on_step(train_replay.add)
@@ -80,7 +80,7 @@ def train_eval(
     for _ in range(should_train(step)):
       with timer.scope('dataset_train'):
         batch[0] = next(dataset_train)
-      import ipdb; ipdb.set_trace()
+    #   import ipdb; ipdb.set_trace()
       outs, state[0], mets = agent.train(batch[0], state[0])
       metrics.add(mets, prefix='train')
       if 'priority' in outs:
