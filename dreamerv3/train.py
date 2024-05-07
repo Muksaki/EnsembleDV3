@@ -63,6 +63,7 @@ def main(argv=None):
       eval_env = make_envs(config)  # mode='eval'
       cleanup += [env, eval_env]
       agent = agt.Agent(env.obs_space, env.act_space, step, config)
+      # import ipdb; ipdb.set_trace()
       embodied.run.train_eval(
           agent, env, eval_env, replay, eval_replay, logger, args)
 
@@ -166,6 +167,7 @@ def make_env(config, **overrides):
       'dmc': 'embodied.envs.dmc:DMC',
       'atari': 'embodied.envs.atari:Atari',
       'dmlab': 'embodied.envs.dmlab:DMLab',
+      'metaworld': 'embodied.envs.metaworld:MetaWorld',
       'minecraft': 'embodied.envs.minecraft:Minecraft',
       'loconav': 'embodied.envs.loconav:LocoNav',
       'pinpad': 'embodied.envs.pinpad:PinPad',

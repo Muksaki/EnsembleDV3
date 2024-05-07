@@ -2,8 +2,8 @@ defaults:
 
   seed: 0
   method: name
-  task: dummy_disc
-  logdir: /dev/null
+  task: carla_0
+  logdir: log/dmc_back_walker_walk
   replay: uniform
   replay_size: 1e6
   replay_online: False
@@ -23,12 +23,12 @@ defaults:
     metrics_every: 10
 
   run:
-    script: train
-    steps: 1e10
+    script: train_eval
+    steps: 300000
     expl_until: 0
     log_every: 300
     save_every: 900
-    eval_every: 1e6
+    eval_every: 6000
     eval_initial: True
     eval_eps: 1
     eval_samples: 1
@@ -46,7 +46,7 @@ defaults:
     actor_addr: 'ipc:///tmp/5551'
     actor_batch: 32
 
-  envs: {amount: 4, parallel: process, length: 0, reset: True, restart: True, discretize: 0, checks: False}
+  envs: {amount: 1, parallel: process, length: 0, reset: True, restart: True, discretize: 0, checks: False}
   wrapper: {length: 0, reset: True, discretize: 0, checks: False}
   env:
     atari: {size: [64, 64], repeat: 4, sticky: True, gray: False, actions: all, lives: unused, noops: 0, resize: opencv}
@@ -54,7 +54,9 @@ defaults:
     minecraft: {size: [64, 64], break_speed: 100.0}
     dmc: {size: [64, 64], repeat: 2, camera: -1}
     loconav: {size: [64, 64], repeat: 2, camera: -1}
-
+    dmcback: {size: [64, 64], repeat: 2, camera: -1, eval_mode: 'video_easy'}
+    carla: {size: [64, 64], repeat: 4}
+    metaworld: {size: [64, 64], repeat: 1}
   # Agent
   task_behavior: Greedy
   expl_behavior: None
@@ -121,6 +123,30 @@ dmlab:
   decoder: {mlp_keys: '$^', cnn_keys: 'image'}
   run.train_ratio: 64
 
+
+carla:
+  task: carla_0
+  run:
+    steps: 5e5
+    eval_every: 5e3 # 1e4
+    log_every: 5e3 # 1e4
+  grad_heads: [decoder, reward]
+  wrapper: {length: 1000}
+  batch_size: 16
+  batch_length: 64
+  encoder.cnn_depth: 32
+  decoder.cnn_depth: 32
+  # rssm: {deter: 32, units: 16, stoch: 4, classes: 4}
+  # prefill: 2500
+  # dataset_size: 0
+  # pretrain: 100
+  # action_step: 25
+  # free_step: 50
+  # use_free: True
+  # rollout_policy: True
+  # autoencoder: False
+
+
 atari:
 
   task: atari_pong
@@ -167,6 +193,32 @@ crafter:
 dmc_vision:
 
   task: dmc_walker_walk
+  run.train_ratio: 512
+  rssm.deter: 512
+  .*\.cnn_depth: 32
+  .*\.layers: 2
+  .*\.units: 512
+  encoder: {mlp_keys: '$^', cnn_keys: 'image'}
+  decoder: {mlp_keys: '$^', cnn_keys: 'image'}
+
+
+metaworld:
+
+  task: metaworld_button_press
+  run.train_ratio: 512
+  rssm.deter: 512
+  .*\.cnn_depth: 32
+  .*\.layers: 2
+  .*\.units: 512
+  encoder: {mlp_keys: '$^', cnn_keys: 'image'}
+  decoder: {mlp_keys: '$^', cnn_keys: 'image'}
+  run:
+    eval_eps: 10
+
+
+dmc_back:
+  task: dmcback_walker_walk
+  run.script: train_eval
   run.train_ratio: 512
   rssm.deter: 512
   .*\.cnn_depth: 32

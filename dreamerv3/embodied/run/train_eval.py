@@ -37,6 +37,7 @@ def train_eval(
         'reward_rate': (ep['reward'] - ep['reward'].min() >= 0.1).mean(),
     }, prefix=('episode' if mode == 'train' else f'{mode}_episode'))
     print(f'Episode has {length} steps and return {score:.1f}.')
+    # import ipdb; ipdb.set_trace()
     stats = {}
     for key in args.log_keys_video:
       if key in ep:
@@ -79,6 +80,7 @@ def train_eval(
     for _ in range(should_train(step)):
       with timer.scope('dataset_train'):
         batch[0] = next(dataset_train)
+      import ipdb; ipdb.set_trace()
       outs, state[0], mets = agent.train(batch[0], state[0])
       metrics.add(mets, prefix='train')
       if 'priority' in outs:
@@ -116,7 +118,7 @@ def train_eval(
     if should_eval(step):
       print('Starting evaluation at step', int(step))
       driver_eval.reset()
-      driver_eval(policy_eval, episodes=max(len(eval_env), args.eval_eps))
+      driver_eval(policy_eval, episodes=max(len(eval_env), args.eval_eps), logger=logger)
     driver_train(policy_train, steps=100)
     if should_save(step):
       checkpoint.save()

@@ -74,6 +74,7 @@ class Agent(nj.Module):
     return outs, state
 
   def train(self, data, state):
+    # import ipdb; ipdb.set_trace()
     self.config.jax.jit and print('Tracing train function.')
     metrics = {}
     data = self.preprocess(data)
@@ -142,6 +143,7 @@ class WorldModel(nj.Module):
     return prev_latent, prev_action
 
   def train(self, data, state):
+    # import ipdb; ipdb.set_trace()
     modules = [self.encoder, self.rssm, *self.heads.values()]
     mets, (state, outs, metrics) = self.opt(
         modules, self.loss, data, state, has_aux=True)
@@ -149,10 +151,11 @@ class WorldModel(nj.Module):
     return state, outs, metrics
 
   def loss(self, data, state):
+    # import ipdb; ipdb.set_trace()
     embed = self.encoder(data)
     prev_latent, prev_action = state
     prev_actions = jnp.concatenate([
-        prev_action[:, None], data['action'][:, :-1]], 1)
+        prev_action[:, None], data['action'][:, :-1]], 1) # Transform this action into latent action
     post, prior = self.rssm.observe(
         embed, prev_actions, data['is_first'], prev_latent)
     dists = {}
@@ -246,6 +249,7 @@ class ImagActorCritic(nj.Module):
     self.scales = scales
     self.act_space = act_space
     self.config = config
+    import ipdb; ipdb.set_trace()
     disc = act_space.discrete
     self.grad = config.actor_grad_disc if disc else config.actor_grad_cont
     self.actor = nets.MLP(
