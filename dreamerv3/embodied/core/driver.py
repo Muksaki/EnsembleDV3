@@ -55,7 +55,7 @@ class Driver:
         obs = self._env.step(acts)
         obs = {k: convert(v) for k, v in obs.items()}
         assert all(len(x) == len(self._env) for x in obs.values()), obs
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         acts, self._state = policy(obs, self._state, **self._kwargs)
         acts = {k: convert(v) for k, v in acts.items()}
         if obs['is_last'].any():
@@ -127,25 +127,15 @@ class OfflineDriver:
   def on_episode(self, callback):
     self._on_episodes.append(callback)
 
-  def __call__(self, steps=0, episodes=0):
-    step, episode = 0, 0
-    while step < steps or episode < episodes:
-      # import ipdb; ipdb.set_trace()
-      if not self._rollout_files or not self._rollout_step:
-        self._rollout_files = [os.path.join(self._offline_datadir, 
-                                      np.random.choice(os.listdir(self._offline_datadir))) for i in range(len(self._env))]
-        self._rollout_step = 0
-      offline_eps = [np.load(rollout_file) for rollout_file in self._rollout_files] # random choose an npz file and read it
-      # import ipdb; ipdb.set_trace()
-      for index in range(self._rollout_step, offline_eps[0]['image'].shape[0]):
-        trs = {k: [offline_eps[i][k][index] for i in range(len(self._env))] for k in self._load_keys}
-        step, episode = self._step(trs, step, episode)
-        if step >= steps and steps != 0:
-          break
-        if episode >= episodes and episodes != 0:
-          break
+  def __call__(self):
+    self._rollout_files = os.listdir(self._offline_datadir)
+    for rollout_file in self._rollout_files:
+      offline_ep = np.load(os.path.join(self._offline_datadir, rollout_file))
+      for index in range(offline_ep['image'].shape[0]):
+        tr = {k: [offline_ep[k][index]] for k in self._load_keys}
+        self._step(tr)
 
-  def _step(self, transitions, step, episode):
+  def _step(self, transitions):
     assert all(len(x) == len(self._env) for x in self._acts.values())
     acts = {k: v for k, v in self._acts.items() if not k.startswith('log_')}
     obs = {k: convert(v) for k, v in transitions.items() if k in self._obs_keys}
@@ -167,18 +157,11 @@ class OfflineDriver:
       trn = {k: v[i] for k, v in trns.items()}
       [self._eps[i][k].append(v) for k, v in trn.items()]
       [fn(trn, i, **self._kwargs) for fn in self._on_steps]
-      step += 1
-    self._rollout_step += 1
     if obs['is_last'].any():
-      self._rollout_step = None
-      self._rollout_files = None
       for i, done in enumerate(obs['is_last']):
         if done:
           ep = {k: convert(v) for k, v in self._eps[i].items()}
           [fn(ep.copy(), i, **self._kwargs) for fn in self._on_episodes]
-          episode += 1
-    # import ipdb; ipdb.set_trace()
-    return step, episode
 
   def _expand(self, value, dims):
     while len(value.shape) < dims:

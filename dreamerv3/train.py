@@ -36,6 +36,7 @@ def main(argv=None):
   print(config)
 
   logdir = embodied.Path(args.logdir)
+  offline_logdir = embodied.Path('/data/ytzheng/log_nips2024/metaworld_offline/handle_press_s3')
   logdir.mkdirs()
   config.save(logdir / 'config.yaml')
   step = embodied.Counter()
@@ -64,7 +65,7 @@ def main(argv=None):
       embodied.run.train_save(agent, env, replay, logger, args)
 
     elif args.script == 'train_eval':
-      replay = make_replay(config, logdir / 'replay')
+      replay = make_replay(config, offline_logdir / 'replay')
       eval_replay = make_replay(config, logdir / 'eval_replay', is_eval=True)
       env = make_envs(config)
       eval_env = make_envs(config)  # mode='eval'

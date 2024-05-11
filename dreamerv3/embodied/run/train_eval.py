@@ -56,7 +56,7 @@ def train_eval(
 
   driver_train = embodied.OfflineDriver(train_env, offline_datadir)
   driver_train.on_episode(lambda ep, worker: per_episode(ep, mode='train'))
-  driver_train.on_step(lambda tran, _: step.increment())
+  # driver_train.on_step(lambda tran, _: step.increment())
   driver_train.on_step(train_replay.add)
   driver_eval = embodied.Driver(eval_env)
   driver_eval.on_step(eval_replay.add)
@@ -64,8 +64,8 @@ def train_eval(
 
   random_agent = embodied.RandomAgent(train_env.act_space)
   print('Prefill train dataset.')
-  while len(train_replay) < max(args.batch_steps, args.train_fill):
-    driver_train(steps=100)
+  # while len(train_replay) < max(args.batch_steps, args.train_fill):
+    # driver_train(steps=100)
   print('Prefill eval dataset.')
   while len(eval_replay) < max(args.batch_steps, args.eval_fill):
     driver_eval(random_agent.policy, steps=100)
@@ -119,7 +119,8 @@ def train_eval(
       print('Starting evaluation at step', int(step))
       driver_eval.reset()
       driver_eval(policy_eval, episodes=max(len(eval_env), args.eval_eps), logger=logger)
-    driver_train(steps=100)
+    train_step(None, None)
+    step.increment()
     if should_save(step):
       checkpoint.save()
   logger.write()
