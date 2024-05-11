@@ -55,6 +55,7 @@ class Driver:
         obs = self._env.step(acts)
         obs = {k: convert(v) for k, v in obs.items()}
         assert all(len(x) == len(self._env) for x in obs.values()), obs
+        import ipdb; ipdb.set_trace()
         acts, self._state = policy(obs, self._state, **self._kwargs)
         acts = {k: convert(v) for k, v in acts.items()}
         if obs['is_last'].any():
