@@ -249,7 +249,7 @@ class ImagActorCritic(nj.Module):
     self.scales = scales
     self.act_space = act_space
     self.config = config
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     disc = act_space.discrete
     self.grad = config.actor_grad_disc if disc else config.actor_grad_cont
     self.actor = nets.MLP(
