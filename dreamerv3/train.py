@@ -65,7 +65,7 @@ def main(argv=None):
       embodied.run.train_save(agent, env, replay, logger, args)
 
     elif args.script == 'train_eval':
-      replay = make_replay(config, offline_logdir / 'replay')
+      replay = make_replay(config, logdir / 'replay')
       eval_replay = make_replay(config, logdir / 'eval_replay', is_eval=True)
       env = make_envs(config)
       eval_env = make_envs(config)  # mode='eval'

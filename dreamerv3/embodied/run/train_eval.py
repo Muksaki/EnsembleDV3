@@ -65,7 +65,7 @@ def train_eval(
   random_agent = embodied.RandomAgent(train_env.act_space)
   print('Prefill train dataset.')
   # while len(train_replay) < max(args.batch_steps, args.train_fill):
-    # driver_train(steps=100)
+  driver_train()
   print('Prefill eval dataset.')
   while len(eval_replay) < max(args.batch_steps, args.eval_fill):
     driver_eval(random_agent.policy, steps=100)
