@@ -22,4 +22,4 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
  --from_offline_checkpoint '/data/ytzheng/log_nips2024/metaworld_baseline/button_press_full_replay_501_s1/checkpoint.ckpt' \
  --from_online_checkpoint '/data/ytzheng/log_eccv2024/metaworld/metaworld_button_press_s1/checkpoint.ckpt'
 
-CUDA_VISIBLE_DEVICES=0 python train.py  --configs defaults metaworld  --task metaworld_button_press  --logdir "/data/ytzheng/log_icml2025/metaworld_off2on_test/metaworld_button_press"  --seed $seed  --from_offline_checkpoint '/data/ytzheng/log_nips2024/metaworld_baseline/button_press_full_replay_501_s1/checkpoint.ckpt'  --from_online_checkpoint '/data/ytzheng/log_eccv2024/metaworld/metaworld_button_press_s1/checkpoint.ckpt'
+# CUDA_VISIBLE_DEVICES=0 python train.py  --configs defaults metaworld  --task metaworld_button_press  --logdir "/data/ytzheng/log_icml2025/metaworld_off2on_test/metaworld_button_press"  --seed $seed  --from_offline_checkpoint '/data/ytzheng/log_nips2024/metaworld_baseline/button_press_full_replay_501_s1/checkpoint.ckpt'  --from_online_checkpoint '/data/ytzheng/log_eccv2024/metaworld/metaworld_button_press_s1/checkpoint.ckpt'

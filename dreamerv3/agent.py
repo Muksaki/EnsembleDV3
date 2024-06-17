@@ -147,10 +147,11 @@ class WorldModel(nj.Module):
   def train(self, data, state):
     # import ipdb; ipdb.set_trace()
     modules = [self.encoder, self.rssm, *self.heads.values()]
-    # mets, (state, outs, metrics) = self.opt(
-    #     modules, self.loss, data, state, has_aux=True)
+    mets, (state, outs, metrics) = self.opt(
+        modules, self.loss, data, state, has_aux=True)
     mets, (state, outs, metrics) = self.loss(data, state)
-    metrics.update(mets)
+    # import ipdb; ipdb.set_trace()
+    # metrics.update(mets)
     return state, outs, metrics
 
   def loss(self, data, state):

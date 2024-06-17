@@ -9,6 +9,7 @@ defaults:
   replay_online: False
   eval_dir: ''
   filter: '.*'
+  
 
   jax:
     platform: gpu

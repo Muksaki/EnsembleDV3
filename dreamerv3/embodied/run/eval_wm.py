@@ -4,7 +4,7 @@ import embodied
 import numpy as np
 
 
-def train(agent, offline_agent, env, replay, logger, args):
+def EvalWM(agent, offline_agent, env, replay, logger, args):
 
   logdir = embodied.Path(args.logdir)
   logdir.mkdirs()
