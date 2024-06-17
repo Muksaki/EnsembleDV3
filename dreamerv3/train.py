@@ -87,6 +87,13 @@ def main(argv=None):
       agent = agt.Agent(env.obs_space, env.act_space, step, config)
       embodied.run.eval_only(agent, env, logger, args)
 
+    elif args.script == 'eval_only_off2on':
+      env = make_envs(config)  # mode='eval'
+      cleanup.append(env)
+      agent = agt.Agent(env.obs_space, env.act_space, step, config)
+      offline_agent = agt.Agent(env.obs_space, env.act_space, step, config)
+      embodied.run.eval_only_off2on(agent, offline_agent, env, logger, args)
+
     elif args.script == 'parallel':
       assert config.run.actor_batch <= config.envs.amount, (
           config.run.actor_batch, config.envs.amount)

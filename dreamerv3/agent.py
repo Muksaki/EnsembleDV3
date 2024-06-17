@@ -80,13 +80,15 @@ class Agent(nj.Module):
     data = self.preprocess(data)
     state, wm_outs, mets = self.wm.train(data, state)
     metrics.update(mets)
-    context = {**data, **wm_outs['post']}
-    start = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), context)
-    _, mets = self.task_behavior.train(self.wm.imagine, start, context)
-    metrics.update(mets)
-    if self.config.expl_behavior != 'None':
-      _, mets = self.expl_behavior.train(self.wm.imagine, start, context)
-      metrics.update({'expl_' + key: value for key, value in mets.items()})
+    # World Model Evaluating does not involve policy stuff.
+    
+    # context = {**data, **wm_outs['post']}
+    # start = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), context)
+    # _, mets = self.task_behavior.train(self.wm.imagine, start, context)
+    # metrics.update(mets)
+    # if self.config.expl_behavior != 'None':
+    #   _, mets = self.expl_behavior.train(self.wm.imagine, start, context)
+    #   metrics.update({'expl_' + key: value for key, value in mets.items()})
     outs = {}
     return outs, state, metrics
 
@@ -145,8 +147,9 @@ class WorldModel(nj.Module):
   def train(self, data, state):
     # import ipdb; ipdb.set_trace()
     modules = [self.encoder, self.rssm, *self.heads.values()]
-    mets, (state, outs, metrics) = self.opt(
-        modules, self.loss, data, state, has_aux=True)
+    # mets, (state, outs, metrics) = self.opt(
+    #     modules, self.loss, data, state, has_aux=True)
+    mets, (state, outs, metrics) = self.loss(data, state)
     metrics.update(mets)
     return state, outs, metrics
 
