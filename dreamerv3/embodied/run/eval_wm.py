@@ -2,11 +2,13 @@ import re
 
 import embodied
 import numpy as np
+from scipy.stats import zscore
 
 
 def EvalWM(agent, offline_agent, env, replay, logger, args):
 
   logdir = embodied.Path(args.logdir)
+  offline_directory = args.offline_directory
   logdir.mkdirs()
   print('Logdir', logdir)
   should_expl = embodied.when.Until(args.expl_until)
@@ -54,15 +56,22 @@ def EvalWM(agent, offline_agent, env, replay, logger, args):
         stats[f'max_{key}'] = ep[key].max(0).mean()
     metrics.add(stats, prefix='stats')
 
-  driver = embodied.Driver(env)
+  if offline_directory: # eval_pattern=1: offline eval
+    driver = embodied.OfflineDriver(env, offline_directory)
+  else:
+    driver = embodied.Driver(env)
   driver.on_episode(lambda ep, worker: per_episode(ep))
   driver.on_step(lambda tran, _: step.increment())
   driver.on_step(replay.add)
 
   print('Prefill eval dataset.')
   random_agent = embodied.RandomAgent(env.act_space)
-  while len(replay) < max(args.batch_steps, args.train_fill):
-    driver(random_agent.policy, steps=100)
+  if not offline_directory:
+    while len(replay) < max(args.batch_steps, args.train_fill):
+      driver(random_agent.policy, steps=100)
+  else:
+    while len(replay) < max(args.batch_steps, args.train_fill):
+      driver(steps=100)
   logger.add(metrics.result())
   logger.write()
 
@@ -77,6 +86,13 @@ def EvalWM(agent, offline_agent, env, replay, logger, args):
       online_outs, online_state[0], mets = agent.train(batch[0], online_state[0])
       metrics.add(mets, prefix='eval_online')
       offline_outs, offline_state[0], mets = offline_agent.train(batch[0], offline_state[0])
+      online_embed = online_outs['embed'].reshape(-1, 4096)
+      normalized_online_embed = zscore(online_embed, axis=1)
+      offline_embed = offline_outs['embed'].reshape(-1, 4096)
+      normalized_offline_embed = zscore(offline_embed, axis=1)
+      # embed_mse = np.mean((normalized_offline_embed - normalized_online_embed) ** 2)
+      
+      # import ipdb; ipdb.set_trace()
       # if 'priority' in outs:
       #   replay.prioritize(outs['key'], outs['priority'])
     #   updates.increment()
@@ -138,12 +154,20 @@ def EvalWM(agent, offline_agent, env, replay, logger, args):
   print('Start Eval loop.')
   # policy = lambda *args: agent.policy(
   #     *args, mode='explore' if should_expl(step) else 'train')
-  while step < args.steps:
-    driver(random_agent.policy, steps=100)
-    if should_log(step):
-      logger.add(metrics.result())
-      logger.add(timer.stats(), prefix='timer')
-      logger.write(fps=True)
-    # if should_save(step):
-    #   checkpoint.save()
+  if not offline_directory:
+    while step < args.steps:
+      driver(random_agent.policy, steps=100)
+      if should_log(step):
+        logger.add(metrics.result())
+        logger.add(timer.stats(), prefix='timer')
+        logger.write(fps=True)
+      # if should_save(step):
+      #   checkpoint.save()
+  else:
+    while step < args.steps:
+      driver(steps=100)
+      if should_log(step):
+        logger.add(metrics.result())
+        logger.add(timer.stats(), prefix='timer')
+        logger.write(fps=True)
   logger.write()

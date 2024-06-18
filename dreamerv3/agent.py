@@ -147,8 +147,8 @@ class WorldModel(nj.Module):
   def train(self, data, state):
     # import ipdb; ipdb.set_trace()
     modules = [self.encoder, self.rssm, *self.heads.values()]
-    mets, (state, outs, metrics) = self.opt(
-        modules, self.loss, data, state, has_aux=True)
+    # mets, (state, outs, metrics) = self.opt(
+    #     modules, self.loss, data, state, has_aux=True)
     mets, (state, outs, metrics) = self.loss(data, state)
     # import ipdb; ipdb.set_trace()
     # metrics.update(mets)
@@ -164,6 +164,7 @@ class WorldModel(nj.Module):
         embed, prev_actions, data['is_first'], prev_latent)
     dists = {}
     feats = {**post, 'embed': embed}
+    # import ipdb; ipdb.set_trace()
     for name, head in self.heads.items():
       out = head(feats if name in self.config.grad_heads else sg(feats))
       out = out if isinstance(out, dict) else {name: out}
@@ -228,6 +229,7 @@ class WorldModel(nj.Module):
     metrics = {}
     metrics.update(jaxutils.tensorstats(entropy(prior), 'prior_ent'))
     metrics.update(jaxutils.tensorstats(entropy(post), 'post_ent'))
+    # import ipdb; ipdb.set_trace()
     metrics.update({f'{k}_loss_mean': v.mean() for k, v in losses.items()})
     metrics.update({f'{k}_loss_std': v.std() for k, v in losses.items()})
     metrics['model_loss_mean'] = model_loss.mean()

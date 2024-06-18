@@ -13,7 +13,7 @@ class MetaWorld(embodied.Env):
       camera=None, seed=None):
     assert mode in ('train', 'eval')
     if camera in (None, -1):
-      camera = 'corner2'
+      camera = 'corner'
     from metaworld.envs import (
         ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE,
         ALL_V2_ENVIRONMENTS_GOAL_HIDDEN,
