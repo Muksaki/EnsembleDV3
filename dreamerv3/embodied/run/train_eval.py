@@ -80,7 +80,7 @@ def train_eval(
     for _ in range(should_train(step)):
       with timer.scope('dataset_train'):
         batch[0] = next(dataset_train)
-      import ipdb; ipdb.set_trace()
+      # import ipdb; ipdb.set_trace()
       outs, state[0], mets = agent.train(batch[0], state[0])
       metrics.add(mets, prefix='train')
       if 'priority' in outs:
