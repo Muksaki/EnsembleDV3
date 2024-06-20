@@ -90,6 +90,7 @@ class Agent(nj.Module):
     #   _, mets = self.expl_behavior.train(self.wm.imagine, start, context)
     #   metrics.update({'expl_' + key: value for key, value in mets.items()})
     outs = {}
+    outs.update(wm_outs)
     return outs, state, metrics
 
   def report(self, data):

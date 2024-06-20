@@ -55,7 +55,7 @@ def EvalWM(agent, offline_agent, env, replay, logger, args):
       if re.match(args.log_keys_max, key):
         stats[f'max_{key}'] = ep[key].max(0).mean()
     metrics.add(stats, prefix='stats')
-
+  # import ipdb; ipdb.set_trace()
   if offline_directory: # eval_pattern=1: offline eval
     driver = embodied.OfflineDriver(env, offline_directory)
   else:
@@ -86,12 +86,36 @@ def EvalWM(agent, offline_agent, env, replay, logger, args):
       online_outs, online_state[0], mets = agent.train(batch[0], online_state[0])
       metrics.add(mets, prefix='eval_online')
       offline_outs, offline_state[0], mets = offline_agent.train(batch[0], offline_state[0])
+
       online_embed = online_outs['embed'].reshape(-1, 4096)
       normalized_online_embed = zscore(online_embed, axis=1)
       offline_embed = offline_outs['embed'].reshape(-1, 4096)
       normalized_offline_embed = zscore(offline_embed, axis=1)
-      # embed_mse = np.mean((normalized_offline_embed - normalized_online_embed) ** 2)
-      
+      embed_mse = np.mean((normalized_offline_embed - normalized_online_embed) ** 2)
+
+
+      # import ipdb; ipdb.set_trace()
+      offline_outs_deter = offline_outs['post']['deter']
+      # offline_outs_deter = offline_outs_deter.reshape(-1, offline_outs_deter.shape[-1])
+      offline_outs_stoch = offline_outs['post']['stoch']
+      offline_outs_stoch = offline_outs_stoch.reshape(offline_outs_stoch.shape[0], offline_outs_stoch.shape[1], -1)
+      offline_post = np.concatenate((offline_outs_deter, offline_outs_stoch), -1)
+      offline_post = offline_post.reshape(-1, offline_post.shape[-1])
+
+      online_outs_deter = online_outs['post']['deter']
+      # online_outs_deter = online_outs_deter.reshape(-1, online_outs_deter.shape[-1])
+      online_outs_stoch = online_outs['post']['stoch']
+      online_outs_stoch = online_outs_stoch.reshape(online_outs_stoch.shape[0], online_outs_stoch.shape[1], -1)
+      online_post = np.concatenate((online_outs_deter, online_outs_stoch), -1)
+      online_post = online_post.reshape(-1, online_post.shape[-1])
+
+      # import ipdb; ipdb.set_trace()
+      if offline_directory:
+        np.save(f'/data/ytzheng/code_icml25/dreamerv3_metaworld/scripts/features/compare_multiple_features/online_model/offline_input/online_embed{step}_offline_input.npy', online_embed)
+      else:
+        np.save(f'/data/ytzheng/code_icml25/dreamerv3_metaworld/scripts/features/compare_multiple_features/online_model/online_input/online_embed{step}_online_input.npy', online_embed)
+      # np.save(f'/data/ytzheng/code_icml25/dreamerv3_metaworld/scripts/features/offline_embed021_online_input.npy', offline_embed)
+      # np.save(f'/data/ytzheng/code_icml25/dreamerv3_metaworld/scripts/features/offline_embed022_online_input.npy', online_embed)
       # import ipdb; ipdb.set_trace()
       # if 'priority' in outs:
       #   replay.prioritize(outs['key'], outs['priority'])
