@@ -139,6 +139,13 @@ def make_replay(
       kw['tolerance'] = 10 * config.batch_size
       kw['min_size'] = config.batch_size
     replay = embodied.replay.Uniform(length, size, directory, **kw)
+  elif config.replay == 'kfolduniform':
+    kw = {'online': config.replay_online}
+    if rate_limit and config.run.train_ratio > 0:
+      kw['samples_per_insert'] = config.run.train_ratio / config.batch_length
+      kw['tolerance'] = 10 * config.batch_size
+      kw['min_size'] = config.batch_size
+    replay = embodied.replay.KFoldUniform(length, size, directory, k=config.ensemble_number, **kw)
   elif config.replay == 'reverb':
     replay = embodied.replay.Reverb(length, size, directory)
   elif config.replay == 'chunks':

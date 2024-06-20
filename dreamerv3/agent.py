@@ -2,6 +2,7 @@ import embodied
 import jax
 import jax.numpy as jnp
 import ruamel.yaml as yaml
+import numpy as np
 tree_map = jax.tree_util.tree_map
 sg = lambda x: tree_map(jax.lax.stop_gradient, x)
 
@@ -30,7 +31,10 @@ class Agent(nj.Module):
     self.obs_space = obs_space
     self.act_space = act_space['action']
     self.step = step
-    self.wm = WorldModel(obs_space, act_space, config, name='wm')
+    if config.ensemble_number:
+      self.wm = EnsembleWorldModel(obs_space, act_space, config, name='enwm')
+    else:
+      self.wm = WorldModel(obs_space, act_space, config, name='wm')
     self.task_behavior = getattr(behaviors, config.task_behavior)(
         self.wm, self.act_space, self.config, name='task_behavior')
     if config.expl_behavior == 'None':
@@ -79,9 +83,13 @@ class Agent(nj.Module):
     metrics = {}
     data = self.preprocess(data)
     state, wm_outs, mets = self.wm.train(data, state)
-    metrics.update(mets)
-    context = {**data, **wm_outs['post']}
+    metrics.update(mets[0])
+    # import ipdb; ipdb.set_trace()
+    wm_out_posts = {k: jnp.stack([d['post'][k] for d in wm_outs], axis=2) for k in wm_outs[0]['post'].keys()}
+    context = {**data, **wm_out_posts}
     start = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), context)
+    # start1 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), data)
+    # start2 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), wm_out_posts)
     _, mets = self.task_behavior.train(self.wm.imagine, start, context)
     metrics.update(mets)
     if self.config.expl_behavior != 'None':
@@ -114,6 +122,106 @@ class Agent(nj.Module):
       obs[key] = value
     obs['cont'] = 1.0 - obs['is_terminal'].astype(jnp.float32)
     return obs
+  
+
+class EnsembleWorldModel(nj.Module):
+
+  def __init__(self, obs_space, act_space, config):
+    self._k = config.ensemble_number
+    self.obs_space = obs_space
+    self.act_space = act_space
+    self.config = config
+    self.wms = []
+    self.init_wms()
+
+  def init_wms(self):
+    for i in range(self._k):
+      self.wms.append(WorldModel(self.obs_space, self.act_space, self.config, name=f'wm{i}'))
+
+  def train(self, data, states):
+    # import ipdb; ipdb.set_trace()
+    datas = self.split_kfold(data)
+    new_states = []
+    outs = []
+    metrics = []
+    for i in range(self._k):
+      # import ipdb; ipdb.set_trace()
+      state_i, outs_i, metrics_i = self.wms[i].train(datas[i], (states[0][i], states[1][i]))
+      new_states.append(state_i)
+      outs.append(outs_i)
+      metrics.append(metrics_i)
+    return new_states, outs, metrics
+
+  def initial(self, batch_size):
+    prev_latents = []
+    prev_actions = []
+    for i in range(self._k):
+      prev_latenti, prev_actioni = self.wms[i].initial(batch_size)
+      prev_latents.append(prev_latenti)
+      prev_actions.append(prev_actioni)
+    # import ipdb; ipdb.set_trace()
+    return (prev_latents, prev_actions)
+  
+  def split_kfold(self, data):
+    datas = []
+    for i in range(self._k):
+      # import ipdb; ipdb.set_trace()
+      data_i = {k: v[:, i] for k, v in data.items()}
+      datas.append(data_i)
+    return datas
+
+  def metric(self):
+    return
+    
+  def imagine(self, policy, start, horizon):
+    # trajs = []
+    # for i in range(self._k):
+    #   start2_i = {k: v[:, i] for k, v in start2.items()}
+    #   start = {**start1, **start2_i}
+    #   traj = self.wms[i].imagine(policy, start, horizon)
+    #   trajs.append(traj)
+    # # stoch deter weight cont 
+    # import ipdb; ipdb.set_trace()
+
+    first_cont = (1.0 - start['is_terminal']).astype(jnp.float32)
+    keys = list(self.wms[0].rssm.initial(1).keys())
+    # start = {**start1, **start2}
+    start = {k: v for k, v in start.items() if k in keys}
+    # import ipdb; ipdb.set_trace()
+    start_merge = {k: v.reshape(v.shape[0], -1) for k, v in start.items()}
+    start['action'] = policy(start_merge) # policy should be fed with stoch and deter, which is in start2
+    def step(prev, _):
+      prev = prev.copy()
+      states = []
+      for i in range(self._k):
+        # import ipdb; ipdb.set_trace()
+        prev_i = {k: v[:, i]  for k, v in prev.items() if k != 'action'}
+        prev_i['action'] = prev['action']
+        state_i = self.wms[i].rssm.img_step(prev_i, prev_i.pop('action'))
+        states.append(state_i)
+      # import ipdb; ipdb.set_trace()
+      states = {k: jnp.stack([d[k] for d in states], 1) for k in states[0].keys()}
+      states_merge = {k: v.reshape(v.shape[0], -1) for k, v in states.items()}
+      return {**states, 'action': policy(states_merge)}
+    traj = jaxutils.scan(
+        step, jnp.arange(horizon), start, self.config.imag_unroll)
+    # import ipdb; ipdb.set_trace()
+    traj = {k: jnp.concatenate([start[k][None], v], 0) for k, v in traj.items()}
+    
+    conts = []
+    for i in range(self._k):
+      traj_i = {k: v[:, :, i]  for k, v in traj.items() if k != 'action'}
+      traj_i['action'] = traj['action']
+      import ipdb; ipdb.set_trace()
+      cont_i = self.wms[i].heads['cont'](traj_i).mode()
+      conts.append(cont_i)
+    import ipdb; ipdb.set_trace()
+    traj['cont'] = jnp.concatenate([first_cont[None], cont[1:]], 0)
+    discount = 1 - 1 / self.config.horizon
+    traj['weight'] = jnp.cumprod(discount * traj['cont'], 0) / discount
+    return traj
+
+    return trajs
 
 
 class WorldModel(nj.Module):
@@ -362,10 +470,12 @@ class VFunction(nj.Module):
 
   def score(self, traj, actor=None):
     rew = self.rewfn(traj)
+    # multiple rewards mean
     assert len(rew) == len(traj['action']) - 1, (
         'should provide rewards for all but last action')
     discount = 1 - 1 / self.config.horizon
     disc = traj['cont'][1:] * discount
+    # vote for 0/1
     value = self.net(traj).mean()
     vals = [value[-1]]
     interm = rew + disc * value[1:] * (1 - self.config.return_lambda)

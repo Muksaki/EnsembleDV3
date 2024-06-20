@@ -45,7 +45,7 @@ class JAXAgent(embodied.Agent):
     self._updates = embodied.Counter()
     self._should_metrics = embodied.when.Every(self.config.metrics_every)
     self._transform()
-    self.varibs = self._init_varibs(obs_space, act_space)
+    self.varibs = self._init_varibs(obs_space, act_space, config.ensemble_number)
     self.sync()
 
   def policy(self, obs, state=None, mode='train'):
@@ -120,7 +120,7 @@ class JAXAgent(embodied.Agent):
     if len(self.train_devices) == 1:
       varibs = self.varibs
     else:
-      varibs = tree_map(lambda x: x[0].device_buffer, self.varibs)
+      varibs = tree_map(lambda x: x[0].addressable_data(0), self.varibs)
     if len(self.policy_devices) == 1:
       self.policy_varibs = jax.device_put(varibs, self.policy_devices[0])
     else:
@@ -218,13 +218,14 @@ class JAXAgent(embodied.Agent):
       return jax.device_put_sharded(
           list(self.rng.integers(high, size=len(devices))), devices)
 
-  def _init_varibs(self, obs_space, act_space):
+  def _init_varibs(self, obs_space, act_space, ensemble_number):
     varibs = {}
     rng = self._next_rngs(self.train_devices, mirror=True)
-    dims = (self.batch_size, self.batch_length)
+    dims = (self.batch_size, ensemble_number, self.batch_length)
     data = self._dummy_batch({**obs_space, **act_space}, dims)
     data = self._convert_inps(data, self.train_devices)
     state, varibs = self._init_train(varibs, rng, data['is_first'])
+    # import ipdb; ipdb.set_trace()
     varibs = self._train(varibs, rng, data, state, init_only=True)
     # obs = self._dummy_batch(obs_space, (1,))
     # state, varibs = self._init_policy(varibs, rng, obs['is_first'])

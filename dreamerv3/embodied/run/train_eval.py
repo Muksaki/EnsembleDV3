@@ -64,8 +64,8 @@ def train_eval(
 
   random_agent = embodied.RandomAgent(train_env.act_space)
   print('Prefill train dataset.')
-  # while len(train_replay) < max(args.batch_steps, args.train_fill):
-  driver_train()
+  while len(train_replay) < max(args.batch_steps, args.train_fill):
+    driver_train()
   print('Prefill eval dataset.')
   while len(eval_replay) < max(args.batch_steps, args.eval_fill):
     driver_eval(random_agent.policy, steps=100)
@@ -74,14 +74,17 @@ def train_eval(
 
   dataset_train = agent.dataset(train_replay.dataset)
   dataset_eval = agent.dataset(eval_replay.dataset)
+  
+  
   state = [None]  # To be writable from train step function below.
-  batch = [None]
+  # batch = [None]
   def train_step(tran, worker):
     for _ in range(should_train(step)):
       with timer.scope('dataset_train'):
-        batch[0] = next(dataset_train)
-    #   import ipdb; ipdb.set_trace()
-      outs, state[0], mets = agent.train(batch[0], state[0])
+        import ipdb; ipdb.set_trace()
+        batches = next(dataset_train)
+      # ensemble agent's consitituen world model should have batches sampled from different part of dataset.
+      outs, state[0], mets = agent.train(batches, state[0])
       metrics.add(mets, prefix='train')
       if 'priority' in outs:
         train_replay.prioritize(outs['key'], outs['priority'])
@@ -90,7 +93,7 @@ def train_eval(
       agent.sync()
     if should_log(step):
       logger.add(metrics.result())
-      logger.add(agent.report(batch[0]), prefix='report')
+      logger.add(agent.report(batches), prefix='report')
       with timer.scope('dataset_eval'):
         eval_batch = next(dataset_eval)
       logger.add(agent.report(eval_batch), prefix='eval')
@@ -115,10 +118,10 @@ def train_eval(
   #     *args, mode='explore' if should_expl(step) else 'train')
   policy_eval = lambda *args: agent.policy(*args, mode='eval')
   while step < args.steps:
-    if should_eval(step):
-      print('Starting evaluation at step', int(step))
-      driver_eval.reset()
-      driver_eval(policy_eval, episodes=max(len(eval_env), args.eval_eps), logger=logger)
+    # if should_eval(step):
+    #   print('Starting evaluation at step', int(step))
+    #   driver_eval.reset()
+    #   driver_eval(policy_eval, episodes=max(len(eval_env), args.eval_eps), logger=logger)
     train_step(None, None)
     step.increment()
     if should_save(step):

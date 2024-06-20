@@ -102,6 +102,8 @@ class Generic:
         seq = self.table[self.sampler()]
     else:
       seq = self.table[self.sampler()]
+    
+    # import ipdb; ipdb.set_trace()
     seq = {k: [step[k] for step in seq] for k in seq[0]}
     seq = {k: embodied.convert(v) for k, v in seq.items()}
     if 'is_first' in seq:

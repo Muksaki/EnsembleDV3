@@ -4,12 +4,13 @@ defaults:
   method: name
   task: carla_0
   logdir: log/dmc_back_walker_walk
-  replay: uniform
+  replay: kfolduniform
   replay_size: 1e6
   replay_online: False
   eval_dir: ''
   filter: '.*'
   offline_datadir: '/data/ytzheng/Datasets/datasets_10_dreamerv3_200eps_full/handle_press/eval_eps'
+  ensemble_number: 5
 
 
   jax:
