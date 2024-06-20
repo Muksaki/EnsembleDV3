@@ -29,6 +29,7 @@ class RSSM(nj.Module):
     self._kw = kw
 
   def initial(self, bs):
+    
     if self._classes:
       state = dict(
           deter=jnp.zeros([bs, self._deter], f32),
@@ -43,6 +44,7 @@ class RSSM(nj.Module):
     if self._initial == 'zeros':
       return cast(state)
     elif self._initial == 'learned':
+      # import ipdb; ipdb.set_trace()
       deter = self.get('initial', jnp.zeros, state['deter'][0].shape, f32)
       state['deter'] = jnp.repeat(jnp.tanh(deter)[None], bs, 0)
       state['stoch'] = self.get_stoch(cast(state['deter']))

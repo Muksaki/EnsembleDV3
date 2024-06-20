@@ -50,6 +50,7 @@ class Agent(nj.Module):
         self.expl_behavior.initial(batch_size))
 
   def train_initial(self, batch_size):
+    # import ipdb; ipdb.set_trace()
     return self.wm.initial(batch_size)
 
   def policy(self, obs, state, mode='train'):
@@ -82,11 +83,13 @@ class Agent(nj.Module):
     self.config.jax.jit and print('Tracing train function.')
     metrics = {}
     data = self.preprocess(data)
+    import ipdb; ipdb.set_trace()
     state, wm_outs, mets = self.wm.train(data, state)
     metrics.update(mets[0])
     # import ipdb; ipdb.set_trace()
     wm_out_posts = {k: jnp.stack([d['post'][k] for d in wm_outs], axis=2) for k in wm_outs[0]['post'].keys()}
     context = {**data, **wm_out_posts}
+    # import ipdb; ipdb.set_trace()
     start = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), context)
     # start1 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), data)
     # start2 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), wm_out_posts)
@@ -140,13 +143,14 @@ class EnsembleWorldModel(nj.Module):
 
   def train(self, data, states):
     # import ipdb; ipdb.set_trace()
-    datas = self.split_kfold(data)
     new_states = []
     outs = []
     metrics = []
     for i in range(self._k):
       # import ipdb; ipdb.set_trace()
-      state_i, outs_i, metrics_i = self.wms[i].train(datas[i], (states[0][i], states[1][i]))
+      data_i = {k: v[:, :, i] for k, v in data.items()}
+      state_i, outs_i, metrics_i = self.wms[i].train(data_i, (states[0][i], states[1][i]))
+      # import ipdb; ipdb.set_trace()
       new_states.append(state_i)
       outs.append(outs_i)
       metrics.append(metrics_i)
@@ -181,7 +185,7 @@ class EnsembleWorldModel(nj.Module):
     #   traj = self.wms[i].imagine(policy, start, horizon)
     #   trajs.append(traj)
     # # stoch deter weight cont 
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     
     first_cont = (1.0 - start['is_terminal']).astype(jnp.float32)
     keys = list(self.wms[0].rssm.initial(1).keys())
@@ -214,16 +218,17 @@ class EnsembleWorldModel(nj.Module):
       traj_i['action'] = traj['action']
       # import ipdb; ipdb.set_trace()
       cont_i = self.wms[i].heads['cont'](traj_i).mode()
+      cont_i = jnp.concatenate([first_cont[:, i][None], cont_i[1:]], 0)
       conts.append(cont_i)
-    import ipdb; ipdb.set_trace()
+
+    # import ipdb; ipdb.set_trace()
     conts = jnp.stack(conts)
-    majority_vote = (np.sum(conts, axis=0) > 2).astype(jnp.int32)
-    traj['cont'] = jnp.concatenate([first_cont[None], majority_vote[1:]], 0)
+    traj['cont'] = (np.sum(conts, axis=0) > 2).astype(jnp.int32)
+    # traj['cont'] = jnp.concatenate([first_cont[None], majority_vote[1:]], 0)
     discount = 1 - 1 / self.config.horizon
     traj['weight'] = jnp.cumprod(discount * traj['cont'], 0) / discount
     return traj
 
-    return trajs
 
 
 class WorldModel(nj.Module):
@@ -248,8 +253,10 @@ class WorldModel(nj.Module):
     self.scales = scales
 
   def initial(self, batch_size):
+    # import ipdb; ipdb.set_trace()
     prev_latent = self.rssm.initial(batch_size)
     prev_action = jnp.zeros((batch_size, *self.act_space.shape))
+
     return prev_latent, prev_action
 
   def train(self, data, state):
@@ -404,6 +411,10 @@ class ImagActorCritic(nj.Module):
       metrics.update(jaxutils.tensorstats(normed_ret, f'{key}_return_normed'))
       metrics[f'{key}_return_rate'] = (jnp.abs(ret) >= 0.5).mean()
     adv = jnp.stack(advs).sum(0)
+    keys = ['deter', 'stoch', 'logit']
+    # import ipdb; ipdb.set_trace()
+    traj = {k: v.reshape(v.shape[0], v.shape[1], -1) if k in keys else v for k, v in traj.items()}
+    # import ipdb; ipdb.set_trace()
     policy = self.actor(sg(traj))
     logpi = policy.log_prob(sg(traj['action']))[:-1]
     loss = {'backprop': -adv, 'reinforce': -logpi * sg(adv)}[self.grad]
@@ -453,6 +464,9 @@ class VFunction(nj.Module):
   def loss(self, traj, target):
     metrics = {}
     traj = {k: v[:-1] for k, v in traj.items()}
+    keys = ['deter', 'stoch', 'logit']
+    # import ipdb; ipdb.set_trace()
+    traj = {k: v.reshape(v.shape[0], v.shape[1], -1) if k in keys else v for k, v in traj.items()}
     dist = self.net(traj)
     loss = -dist.log_prob(sg(target))
     if self.config.critic_slowreg == 'logprob':
@@ -478,6 +492,9 @@ class VFunction(nj.Module):
     discount = 1 - 1 / self.config.horizon
     disc = traj['cont'][1:] * discount
     # vote for 0/1
+    keys = ['deter', 'stoch', 'logit']
+    # import ipdb; ipdb.set_trace()
+    traj = {k: v.reshape(v.shape[0], v.shape[1], -1) if k in keys else v for k, v in traj.items()}
     value = self.net(traj).mean()
     vals = [value[-1]]
     interm = rew + disc * value[1:] * (1 - self.config.return_lambda)

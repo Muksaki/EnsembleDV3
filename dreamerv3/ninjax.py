@@ -161,6 +161,7 @@ def grad(fun, keys, has_aux=False):
     assert all(isinstance(x, (str, Module)) for x in keys)
     strs = [x for x in keys if isinstance(x, str)]
     mods = [x for x in keys if isinstance(x, Module)]
+    import ipdb; ipdb.set_trace()
     for mod in mods:
       strs += mod.getm()
     x1 = {k: v for k, v in context().items() if k in strs}

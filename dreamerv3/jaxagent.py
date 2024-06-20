@@ -221,7 +221,7 @@ class JAXAgent(embodied.Agent):
   def _init_varibs(self, obs_space, act_space, ensemble_number):
     varibs = {}
     rng = self._next_rngs(self.train_devices, mirror=True)
-    dims = (self.batch_size, ensemble_number, self.batch_length)
+    dims = (self.batch_size, self.batch_length, ensemble_number)
     data = self._dummy_batch({**obs_space, **act_space}, dims)
     data = self._convert_inps(data, self.train_devices)
     state, varibs = self._init_train(varibs, rng, data['is_first'])

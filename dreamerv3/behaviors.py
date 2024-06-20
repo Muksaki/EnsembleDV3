@@ -11,7 +11,12 @@ from . import jaxutils
 class Greedy(nj.Module):
 
   def __init__(self, wm, act_space, config):
-    rewfn = lambda s: wm.heads['reward'](s).mean()[1:]
+    # rewfn = lambda s: jnp.array([wm.wms[i].heads['reward'](s).mean()[1:] for i in range(wm._k)]).mean(axis=1)
+    def rewfn(s):
+      keys = ['deter', 'stoch', 'logit']
+      rewards = jnp.array([wm.wms[i].heads['reward']({k: v[:, :, i] if k in keys else v for k, v in s.items()}).mean()[1:] for i in range(wm._k)])
+      # import ipdb; ipdb.set_trace()
+      return rewards.mean(axis=0)
     if config.critic_type == 'vfunction':
       critics = {'extr': agent.VFunction(rewfn, config, name='critic')}
     else:
