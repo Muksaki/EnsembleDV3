@@ -181,8 +181,8 @@ class EnsembleWorldModel(nj.Module):
     #   traj = self.wms[i].imagine(policy, start, horizon)
     #   trajs.append(traj)
     # # stoch deter weight cont 
-    # import ipdb; ipdb.set_trace()
-
+    import ipdb; ipdb.set_trace()
+    
     first_cont = (1.0 - start['is_terminal']).astype(jnp.float32)
     keys = list(self.wms[0].rssm.initial(1).keys())
     # start = {**start1, **start2}
@@ -212,11 +212,13 @@ class EnsembleWorldModel(nj.Module):
     for i in range(self._k):
       traj_i = {k: v[:, :, i]  for k, v in traj.items() if k != 'action'}
       traj_i['action'] = traj['action']
-      import ipdb; ipdb.set_trace()
+      # import ipdb; ipdb.set_trace()
       cont_i = self.wms[i].heads['cont'](traj_i).mode()
       conts.append(cont_i)
     import ipdb; ipdb.set_trace()
-    traj['cont'] = jnp.concatenate([first_cont[None], cont[1:]], 0)
+    conts = jnp.stack(conts)
+    majority_vote = (np.sum(conts, axis=0) > 2).astype(jnp.int32)
+    traj['cont'] = jnp.concatenate([first_cont[None], majority_vote[1:]], 0)
     discount = 1 - 1 / self.config.horizon
     traj['weight'] = jnp.cumprod(discount * traj['cont'], 0) / discount
     return traj
