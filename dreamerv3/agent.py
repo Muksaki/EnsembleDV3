@@ -57,12 +57,17 @@ class Agent(nj.Module):
     self.config.jax.jit and print('Tracing policy function.')
     obs = self.preprocess(obs)
     (prev_latent, prev_action), task_state, expl_state = state
-    embed = self.wm.encoder(obs)
-    latent, _ = self.wm.rssm.obs_step(
-        prev_latent, prev_action, embed, obs['is_first'])
+    latent = self.wm.encode(obs, prev_latent, prev_action)
+    # embed = self.wm.encoder(obs)
+    # latent, _ = self.wm.rssm.obs_step(
+    #     prev_latent, prev_action, embed, obs['is_first'])
+    # import ipdb; ipdb.set_trace()
+    latent = {k: jnp.stack([d[k] for d in latent]) for k in latent[0].keys()}
+    latent = {k: v.reshape(-1) for k, v in latent.items()}
     self.expl_behavior.policy(latent, expl_state)
     task_outs, task_state = self.task_behavior.policy(latent, task_state)
     expl_outs, expl_state = self.expl_behavior.policy(latent, expl_state)
+    import ipdb; ipdb.set_trace()
     if mode == 'eval':
       outs = task_outs
       outs['action'] = outs['action'].sample(seed=nj.rng())
@@ -79,17 +84,13 @@ class Agent(nj.Module):
     return outs, state
 
   def train(self, data, state):
-    # import ipdb; ipdb.set_trace()
     self.config.jax.jit and print('Tracing train function.')
     metrics = {}
     data = self.preprocess(data)
-    import ipdb; ipdb.set_trace()
     state, wm_outs, mets = self.wm.train(data, state)
     metrics.update(mets[0])
-    # import ipdb; ipdb.set_trace()
     wm_out_posts = {k: jnp.stack([d['post'][k] for d in wm_outs], axis=2) for k in wm_outs[0]['post'].keys()}
     context = {**data, **wm_out_posts}
-    # import ipdb; ipdb.set_trace()
     start = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), context)
     # start1 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), data)
     # start2 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), wm_out_posts)
@@ -99,13 +100,14 @@ class Agent(nj.Module):
       _, mets = self.expl_behavior.train(self.wm.imagine, start, context)
       metrics.update({'expl_' + key: value for key, value in mets.items()})
     outs = {}
+    # state 需要和 init_train 给的 state 对齐 
     return outs, state, metrics
 
   def report(self, data):
     self.config.jax.jit and print('Tracing report function.')
     data = self.preprocess(data)
     report = {}
-    report.update(self.wm.report(data))
+    # report.update(self.wm.report(data))
     mets = self.task_behavior.report(data)
     report.update({f'task_{k}': v for k, v in mets.items()})
     if self.expl_behavior is not self.task_behavior:
@@ -142,18 +144,19 @@ class EnsembleWorldModel(nj.Module):
       self.wms.append(WorldModel(self.obs_space, self.act_space, self.config, name=f'wm{i}'))
 
   def train(self, data, states):
-    # import ipdb; ipdb.set_trace()
     new_states = []
+    new_states1 = []
+    new_states2 = []
     outs = []
     metrics = []
     for i in range(self._k):
-      # import ipdb; ipdb.set_trace()
       data_i = {k: v[:, :, i] for k, v in data.items()}
       state_i, outs_i, metrics_i = self.wms[i].train(data_i, (states[0][i], states[1][i]))
-      # import ipdb; ipdb.set_trace()
-      new_states.append(state_i)
+      new_states1.append(state_i[0])
+      new_states2.append(state_i[1])
       outs.append(outs_i)
       metrics.append(metrics_i)
+    new_states = (new_states1, new_states2)
     return new_states, outs, metrics
 
   def initial(self, batch_size):
@@ -178,15 +181,6 @@ class EnsembleWorldModel(nj.Module):
     return
     
   def imagine(self, policy, start, horizon):
-    # trajs = []
-    # for i in range(self._k):
-    #   start2_i = {k: v[:, i] for k, v in start2.items()}
-    #   start = {**start1, **start2_i}
-    #   traj = self.wms[i].imagine(policy, start, horizon)
-    #   trajs.append(traj)
-    # # stoch deter weight cont 
-    # import ipdb; ipdb.set_trace()
-    
     first_cont = (1.0 - start['is_terminal']).astype(jnp.float32)
     keys = list(self.wms[0].rssm.initial(1).keys())
     # start = {**start1, **start2}
@@ -229,7 +223,18 @@ class EnsembleWorldModel(nj.Module):
     traj['weight'] = jnp.cumprod(discount * traj['cont'], 0) / discount
     return traj
 
-
+  def encode(self, obs, prev_latent, prev_action):
+    # prev_latents = [prev_latent for i in range(self._k)]
+    # prev_actions = [prev_action for i in range(self._k)]
+    latents = []
+    for i in range(self._k):
+      embed_i = self.wms[i].encoder(obs)
+      # import ipdb; ipdb.set_trace()
+      latent_i, _ = self.wms[i].rssm.obs_step(
+        prev_latent[i], prev_action[i], embed_i, obs['is_first'])
+      latents.append(latent_i)
+    
+    return latents
 
 class WorldModel(nj.Module):
 
@@ -271,6 +276,7 @@ class WorldModel(nj.Module):
     # import ipdb; ipdb.set_trace()
     embed = self.encoder(data)
     prev_latent, prev_action = state
+    # import ipdb; ipdb.set_trace()
     prev_actions = jnp.concatenate([
         prev_action[:, None], data['action'][:, :-1]], 1) # Transform this action into latent action
     post, prior = self.rssm.observe(

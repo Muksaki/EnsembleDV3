@@ -81,9 +81,10 @@ def train_eval(
   def train_step(tran, worker):
     for _ in range(should_train(step)):
       with timer.scope('dataset_train'):
-        import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         batches = next(dataset_train)
       # ensemble agent's consitituen world model should have batches sampled from different part of dataset.
+      # import ipdb; ipdb.set_trace()
       outs, state[0], mets = agent.train(batches, state[0])
       metrics.add(mets, prefix='train')
       if 'priority' in outs:
@@ -118,10 +119,10 @@ def train_eval(
   #     *args, mode='explore' if should_expl(step) else 'train')
   policy_eval = lambda *args: agent.policy(*args, mode='eval')
   while step < args.steps:
-    # if should_eval(step):
-    #   print('Starting evaluation at step', int(step))
-    #   driver_eval.reset()
-    #   driver_eval(policy_eval, episodes=max(len(eval_env), args.eval_eps), logger=logger)
+    if should_eval(step):
+      print('Starting evaluation at step', int(step))
+      driver_eval.reset()
+      driver_eval(policy_eval, episodes=max(len(eval_env), args.eval_eps), logger=logger)
     train_step(None, None)
     step.increment()
     if should_save(step):

@@ -50,12 +50,13 @@ class Driver:
             # import ipdb; ipdb.set_trace()
 
     def _step(self, policy, step, episode):
+        # import ipdb; ipdb.set_trace()
         assert all(len(x) == len(self._env) for x in self._acts.values())
         acts = {k: v for k, v in self._acts.items() if not k.startswith('log_')}
         obs = self._env.step(acts)
         obs = {k: convert(v) for k, v in obs.items()}
         assert all(len(x) == len(self._env) for x in obs.values()), obs
-        # import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
         acts, self._state = policy(obs, self._state, **self._kwargs)
         acts = {k: convert(v) for k, v in acts.items()}
         if obs['is_last'].any():
