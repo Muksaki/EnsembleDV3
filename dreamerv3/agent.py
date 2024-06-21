@@ -57,17 +57,18 @@ class Agent(nj.Module):
     self.config.jax.jit and print('Tracing policy function.')
     obs = self.preprocess(obs)
     (prev_latent, prev_action), task_state, expl_state = state
+    # import ipdb; ipdb.set_trace()
     latent = self.wm.encode(obs, prev_latent, prev_action)
     # embed = self.wm.encoder(obs)
     # latent, _ = self.wm.rssm.obs_step(
     #     prev_latent, prev_action, embed, obs['is_first'])
     # import ipdb; ipdb.set_trace()
-    latent = {k: jnp.stack([d[k] for d in latent]) for k in latent[0].keys()}
-    latent = {k: v.reshape(-1) for k, v in latent.items()}
-    self.expl_behavior.policy(latent, expl_state)
-    task_outs, task_state = self.task_behavior.policy(latent, task_state)
-    expl_outs, expl_state = self.expl_behavior.policy(latent, expl_state)
-    # import ipdb; ipdb.set_trace()
+    latent_merge = {k: jnp.stack([d[k] for d in latent]) for k in latent[0].keys()}
+    latent_merge = {k: v.reshape(-1) for k, v in latent_merge.items()}
+    self.expl_behavior.policy(latent_merge, expl_state)
+    task_outs, task_state = self.task_behavior.policy(latent_merge, task_state)
+    expl_outs, expl_state = self.expl_behavior.policy(latent_merge, expl_state)
+    import ipdb; ipdb.set_trace()
     if mode == 'eval':
       outs = task_outs
       outs['action'] = outs['action'].sample(seed=nj.rng())
@@ -81,7 +82,8 @@ class Agent(nj.Module):
       outs = task_outs
       outs['log_entropy'] = outs['action'].entropy()
       outs['action'] = outs['action'].sample(seed=nj.rng())
-    state = ((latent, outs['action']), task_state, expl_state)
+    actions = [outs['action'] for i in range(self.config.ensemble_number)]
+    state = ((latent, actions), task_state, expl_state)
     return outs, state
 
   def train(self, data, state):

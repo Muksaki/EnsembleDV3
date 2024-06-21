@@ -58,6 +58,7 @@ class JAXAgent(embodied.Agent):
     else:
       state = tree_map(
           np.asarray, state, is_leaf=lambda x: isinstance(x, list))
+      import ipdb; ipdb.set_trace()
       state = self._convert_inps(state, self.policy_devices)
     (outs, state), _ = self._policy(varibs, rng, obs, state, mode=mode)
     outs = self._convert_outs(outs, self.policy_devices)
