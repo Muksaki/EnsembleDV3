@@ -67,10 +67,11 @@ class Agent(nj.Module):
     self.expl_behavior.policy(latent, expl_state)
     task_outs, task_state = self.task_behavior.policy(latent, task_state)
     expl_outs, expl_state = self.expl_behavior.policy(latent, expl_state)
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     if mode == 'eval':
       outs = task_outs
       outs['action'] = outs['action'].sample(seed=nj.rng())
+      outs['action'] = outs['action'][None, :]
       outs['log_entropy'] = jnp.zeros(outs['action'].shape[:1])
     elif mode == 'explore':
       outs = expl_outs
