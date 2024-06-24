@@ -91,19 +91,20 @@ class Agent(nj.Module):
     data = self.preprocess(data)
     state, wm_outs, mets = self.wm.train(data, state)
     metrics.update(mets[0])
-    wm_out_posts = {k: jnp.stack([d['post'][k] for d in wm_outs], axis=2) for k in wm_outs[0]['post'].keys()}
-    context = {**data, **wm_out_posts}
-    start = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), context)
-    # start1 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), data)
-    # start2 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), wm_out_posts)
-    _, mets = self.task_behavior.train(self.wm.imagine, start, context)
-    metrics.update(mets)
-    if self.config.expl_behavior != 'None':
-      _, mets = self.expl_behavior.train(self.wm.imagine, start, context)
-      metrics.update({'expl_' + key: value for key, value in mets.items()})
-    outs = {}
+    # wm_out_posts = {k: jnp.stack([d['post'][k] for d in wm_outs], axis=2) for k in wm_outs[0]['post'].keys()}
+    # context = {**data, **wm_out_posts}
+    # start = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), context)
+    # # start1 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), data)
+    # # start2 = tree_map(lambda x: x.reshape([-1] + list(x.shape[2:])), wm_out_posts)
+    # _, mets = self.task_behavior.train(self.wm.imagine, start, context)
+    # metrics.update(mets)
+    # if self.config.expl_behavior != 'None':
+    #   _, mets = self.expl_behavior.train(self.wm.imagine, start, context)
+    #   metrics.update({'expl_' + key: value for key, value in mets.items()})
+    # outs = {}
     # state 需要和 init_train 给的 state 对齐 
-    return outs, state, metrics
+    # import ipdb; ipdb.set_trace()
+    return wm_outs, state, metrics
 
   def report(self, data):
     self.config.jax.jit and print('Tracing report function.')
@@ -146,18 +147,20 @@ class EnsembleWorldModel(nj.Module):
       self.wms.append(WorldModel(self.obs_space, self.act_space, self.config, name=f'wm{i}'))
 
   def train(self, data, states):
+    # import ipdb; ipdb.set_trace()
     new_states = []
     new_states1 = []
     new_states2 = []
     outs = []
     metrics = []
     for i in range(self._k):
-      data_i = {k: v[:, :, i] for k, v in data.items()}
+      data_i = {k: v[:, i] for k, v in data.items()}
       state_i, outs_i, metrics_i = self.wms[i].train(data_i, (states[0][i], states[1][i]))
       new_states1.append(state_i[0])
       new_states2.append(state_i[1])
       outs.append(outs_i)
       metrics.append(metrics_i)
+    # import ipdb; ipdb.set_trace()
     new_states = (new_states1, new_states2)
     return new_states, outs, metrics
 
@@ -269,9 +272,11 @@ class WorldModel(nj.Module):
   def train(self, data, state):
     # import ipdb; ipdb.set_trace()
     modules = [self.encoder, self.rssm, *self.heads.values()]
-    mets, (state, outs, metrics) = self.opt(
-        modules, self.loss, data, state, has_aux=True)
-    metrics.update(mets)
+    # mets, (state, outs, metrics) = self.opt(
+    #     modules, self.loss, data, state, has_aux=True)
+    mets, (state, outs, metrics) = self.loss(data, state)
+    # metrics.update(mets)
+    # import ipdb; ipdb.set_trace()
     return state, outs, metrics
 
   def loss(self, data, state):

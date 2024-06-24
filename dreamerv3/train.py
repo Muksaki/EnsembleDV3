@@ -74,6 +74,15 @@ def main(argv=None):
       # import ipdb; ipdb.set_trace()
       embodied.run.train_eval(
           agent, env, eval_env, datadir, replay, eval_replay, logger, args)
+      
+    elif args.script == 'eval_only2':
+      replay = make_replay(config, logdir / 'eval_replay')
+      env = make_envs(config)  # mode='eval'
+      cleanup.append(env)
+      # agent = agt.Agent(env.obs_space, env.act_space, step, config)
+      offline_agent = agt.Agent(env.obs_space, env.act_space, step, config)
+      # embodied.run.EvalWM(agent, offline_agent, env, replay, logger, args)
+      embodied.run.EvalWM(offline_agent, env, replay, logger, args)
 
     elif args.script == 'train_holdout':
       replay = make_replay(config, logdir / 'replay')
@@ -140,6 +149,13 @@ def make_replay(
       kw['min_size'] = config.batch_size
     replay = embodied.replay.Uniform(length, size, directory, **kw)
   elif config.replay == 'kfolduniform':
+    kw = {'online': config.replay_online}
+    if rate_limit and config.run.train_ratio > 0:
+      kw['samples_per_insert'] = config.run.train_ratio / config.batch_length
+      kw['tolerance'] = 10 * config.batch_size
+      kw['min_size'] = config.batch_size
+    replay = embodied.replay.KFoldUniform(length, size, directory, k=config.ensemble_number, **kw)
+  elif config.replay == 'kuniform':
     kw = {'online': config.replay_online}
     if rate_limit and config.run.train_ratio > 0:
       kw['samples_per_insert'] = config.run.train_ratio / config.batch_length

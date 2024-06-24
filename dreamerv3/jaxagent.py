@@ -41,7 +41,7 @@ class JAXAgent(embodied.Agent):
     print('Policy devices:', ', '.join([str(x) for x in self.policy_devices]))
     print('Train devices: ', ', '.join([str(x) for x in self.train_devices]))
 
-    self._once = True
+    self._once = False
     self._updates = embodied.Counter()
     self._should_metrics = embodied.when.Every(self.config.metrics_every)
     self._transform()
@@ -88,6 +88,7 @@ class JAXAgent(embodied.Agent):
       assert jaxutils.Optimizer.PARAM_COUNTS
       for name, count in jaxutils.Optimizer.PARAM_COUNTS.items():
         mets[f'params_{name}'] = float(count)
+    # import ipdb; ipdb.set_trace()
     return outs, state, mets
 
   def report(self, data):

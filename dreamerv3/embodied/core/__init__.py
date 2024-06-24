@@ -10,6 +10,7 @@ from .checkpoint import Checkpoint
 from .config import Config
 from .counter import Counter
 from .driver import Driver
+from .driver import OfflineEvalDriver
 from .driver import OfflineDriver
 from .flags import Flags
 from .logger import Logger
