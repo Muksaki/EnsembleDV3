@@ -58,8 +58,13 @@ class JAXAgent(embodied.Agent):
     else:
       state = tree_map(
           np.asarray, state, is_leaf=lambda x: isinstance(x, list))
-      import ipdb; ipdb.set_trace()
-      state = self._convert_inps(state, self.policy_devices)
+      # import ipdb; ipdb.set_trace()
+      (prev_latent, prev_action), task_state, expl_state = state
+      prev_latent = [self._convert_inps(prev_latent_i, self.policy_devices) for prev_latent_i in prev_latent]
+      prev_action = self._convert_inps(prev_action, self.policy_devices)
+      task_state = self._convert_inps(task_state, self.policy_devices)
+      expl_state = self._convert_inps(expl_state, self.policy_devices)
+      state = (prev_latent, prev_action), task_state, expl_state
     (outs, state), _ = self._policy(varibs, rng, obs, state, mode=mode)
     outs = self._convert_outs(outs, self.policy_devices)
     # TODO: Consider keeping policy states in accelerator memory.

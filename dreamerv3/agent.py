@@ -68,7 +68,6 @@ class Agent(nj.Module):
     self.expl_behavior.policy(latent_merge, expl_state)
     task_outs, task_state = self.task_behavior.policy(latent_merge, task_state)
     expl_outs, expl_state = self.expl_behavior.policy(latent_merge, expl_state)
-    import ipdb; ipdb.set_trace()
     if mode == 'eval':
       outs = task_outs
       outs['action'] = outs['action'].sample(seed=nj.rng())
